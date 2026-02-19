@@ -252,7 +252,7 @@ def generate_fancy_pdf_single_client(row_or_df):
 
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 12, f"Client: {row['names']}", ln=1)
+    pdf.cell(0, 12, f"Customer: {row['names']}", ln=1)
     pdf.set_font("Arial", "", 11)
     pdf.cell(0, 10, f"Disbursement Date: {date_display}", ln=1)
 
@@ -1182,3 +1182,4 @@ elif st.session_state.page == "Admin Controls":
 # Footer
 st.markdown("---")
 st.caption("Loan Management • Section-Level Authentication • Full P&L with Dynamic Income & Expenses")
+
