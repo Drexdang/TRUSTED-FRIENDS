@@ -674,27 +674,33 @@ if st.session_state.page == "Dashboard":
         # ── Tab 3: Pie chart ───────────────────────────────────────────────────
         with tab3:
             fig_pie = px.pie(
-                df[df['balance'] > 0],
-                values='balance',
-                names='names',
-                title="Distribution of Outstanding Balances",
-                hole=0.45,
-                color_discrete_sequence=px.colors.qualitative.Set2,
-                height=520
+               df[df['balance'] > 0],
+               values='balance',
+               names='names',
+               title="Distribution of Outstanding Balances",
+               hole=0.45,
+               color_discrete_sequence=px.colors.qualitative.Set2,
+               height=520
             )
             fig_pie.update_traces(
                 textposition='inside',
-                textinfo='percent+label',
-                insidetextorientation='radial',
-                hovertemplate='<b>%{label}</b><br>Balance: NGN %{value:,.0f}<br>Share: %{percent:.1%}<extra></extra>'
+        textinfo='percent+label',
+        insidetextorientation='radial',
+        hovertemplate='<b>%{label}</b><br>Balance: NGN %{value:,.0f}<br>Share: %{percent:.1%}<extra></extra>'
             )
             fig_pie.update_layout(
-                showlegend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
-                font=dict(family="Segoe UI, Arial", size=13),
-                title_font=dict(size=22),
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)'
-            )
+                legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.15,
+            xanchor="center",
+            x=0.5
+        ),
+        font=dict(family="Segoe UI, Arial", size=13),
+        title_font=dict(size=22),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)'
+    )
             st.plotly_chart(fig_pie, use_container_width=True)
 
     else:
