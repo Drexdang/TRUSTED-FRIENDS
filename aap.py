@@ -116,6 +116,7 @@ def save_loans_df(df):
     conn = sqlite3.connect('loans.db')
     df_save.to_sql('loans', conn, if_exists='replace', index=False)
     conn.close()
+    st.cache_data.clear()  # ← IMPORTANT: invalidate all caches after write
 
 
 def save_expense(category, amount, date_str, description=""):
@@ -125,6 +126,7 @@ def save_expense(category, amount, date_str, description=""):
               (category, amount, date_str, description))
     conn.commit()
     conn.close()
+    st.cache_data.clear()  # ← invalidate cache
 
 
 def save_other_income(category, amount, date_str, description=""):
@@ -134,6 +136,7 @@ def save_other_income(category, amount, date_str, description=""):
               (category, amount, date_str, description))
     conn.commit()
     conn.close()
+    st.cache_data.clear()  # ← invalidate cache
 
 
 def add_new_user(username, password):
@@ -416,42 +419,30 @@ init_db()
 
 st.set_page_config(page_title="Loan Management", layout="wide", page_icon="💰")
 
-# ─── Improved CSS – removed problematic max-height ─────────────────────────────
+# ─── Improved CSS ──────────────────────────────────────────────────────────────
 st.markdown(
     """
     <style>
-        /* Main content area – let it grow naturally */
         .main .block-container {
             padding-top: 2rem !important;
-            padding-bottom: 6rem !important;     /* reduced from 12rem */
+            padding-bottom: 6rem !important;
         }
-
-        /* Tabs should scroll if content is long */
         .stTabs [data-baseweb="tab-panel"] {
             overflow-y: auto !important;
             max-height: 70vh !important;
             min-height: 300px !important;
         }
-
-        /* Forms – give enough space at bottom */
         .stForm {
             padding-bottom: 4rem !important;
             margin-bottom: 3rem !important;
         }
-
-        /* Sidebar scrolling */
         section[data-testid="stSidebar"] > div:first-child {
             overflow-y: auto !important;
             max-height: 100vh !important;
         }
-
-        /* General app */
         .stApp { overflow-y: auto !important; }
-
-        /* Hide default footer */
         footer { visibility: hidden; height: 0 !important; }
 
-        /* Success banner */
         .success-banner {
             position: fixed;
             top: 20px;
@@ -1052,6 +1043,8 @@ elif st.session_state.page == "Edit Loans":
     if st.session_state.edit_loan_auth:
         st.header("Edit / Delete Loan Record")
 
+        df = load_loans_df()
+
         if df.empty:
             st.info("No loans exist yet. Please add a loan first.")
         else:
@@ -1062,7 +1055,8 @@ elif st.session_state.page == "Edit Loans":
 
             with col_search2:
                 st.markdown("<br>", unsafe_allow_html=True)
-                st.button("Find", type="primary", width="stretch", key="search_btn")
+                if st.button("Find", type="primary", width="stretch"):
+                    st.rerun()  # force refresh on search
 
             candidates = df.copy()
 
@@ -1117,7 +1111,8 @@ elif st.session_state.page == "Edit Loans":
                                     c.execute("DELETE FROM loans WHERE sn = ?", (int(selected_row['sn']),))
                                     conn.commit()
                                     conn.close()
-                                    st.session_state.df = load_loans_df()  # reload fresh data
+                                    st.cache_data.clear()  # ← CRITICAL: clear cache after delete
+                                    st.session_state.df = load_loans_df()  # force reload
                                     st.success(f"Record SN {int(selected_row['sn'])} deleted.")
                                     st.rerun()
 
@@ -1203,6 +1198,7 @@ elif st.session_state.page == "Edit Loans":
 
                             st.session_state.df = df
                             save_loans_df(df)
+                            st.cache_data.clear()  # ← CRITICAL after save
 
                             st.markdown(
                                 f"""
@@ -1237,6 +1233,7 @@ elif st.session_state.page == "Admin Controls":
                     if new_username.strip() and new_password.strip():
                         if add_new_user(new_username.strip(), new_password.strip()):
                             st.success(f"User '{new_username}' created successfully")
+                            st.cache_data.clear()  # clear after user change
                         else:
                             st.error("Username already exists")
                     else:
@@ -1252,6 +1249,7 @@ elif st.session_state.page == "Admin Controls":
                     if user['username'] != st.session_state.get('current_user') and st.button("Delete", key=f"del_{user['id']}", width="stretch"):
                         delete_user(user['id'], st.session_state.current_user)
                         st.success(f"User {user['username']} deleted")
+                        st.cache_data.clear()  # clear after user delete
                         st.rerun()
             else:
                 st.info("No additional users yet (only default admin)")
@@ -1262,6 +1260,7 @@ elif st.session_state.page == "Admin Controls":
             cols = ['id','sn','names','date','amount','int_rate','duration','admin_fees','interest','penalty_charged','total','g_total','amt_remitted','balance']
             st.session_state.df = pd.DataFrame(columns=cols)
             save_loans_df(st.session_state.df)
+            st.cache_data.clear()
             st.success("Loan database cleared")
             st.rerun()
     else:
