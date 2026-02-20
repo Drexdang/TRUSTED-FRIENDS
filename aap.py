@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import bcrypt
 import plotly.express as px
 import plotly.graph_objects as go
+# import time   # uncomment if you want to add small delay after delete/save
 
 try:
     from fpdf import FPDF
@@ -546,6 +547,8 @@ with st.sidebar:
 
     st.markdown("---")
     if st.button("Refresh Data"):
+        if 'df' in st.session_state:
+            del st.session_state.df
         st.session_state.df = load_loans_df()
         st.success("Data refreshed")
         st.rerun()
@@ -1019,6 +1022,8 @@ elif st.session_state.page == "Edit Loans":
     if st.session_state.edit_loan_auth:
         st.header("Edit / Delete Loan Record")
 
+        # Force fresh data load on page entry
+        st.cache_data.clear()  # Extra safety
         df = load_loans_df()
 
         if df.empty:
@@ -1056,13 +1061,18 @@ elif st.session_state.page == "Edit Loans":
                     display_choice = candidates[['sn', 'names', 'date', 'amount', 'balance']].copy()
                     display_choice['date'] = display_choice['date'].dt.strftime('%Y-%m-%d')
                     display_choice = display_choice.rename(columns={
-                        'sn':'SN', 'names':'Client', 'date':'Date', 'amount':'Principal', 'balance':'Balance'
+                        'sn': 'SN',
+                        'names': 'Client',
+                        'date': 'Date',
+                        'amount': 'Principal',
+                        'balance': 'Balance'
                     })
                     selection = st.dataframe(
                         display_choice,
                         use_container_width=True,
                         hide_index=False,
-                        on_select="rerun"
+                        on_select="rerun",
+                        key="edit_selection_table"
                     )
                     if len(selection.selection.rows) > 0:
                         selected_row = candidates.iloc[selection.selection.rows[0]]
@@ -1073,21 +1083,31 @@ elif st.session_state.page == "Edit Loans":
 
                     st.markdown("---")
 
-                    if st.button("🗑️ Delete This Record", type="primary", use_container_width=True):
-                        with st.popover("Confirm permanent deletion"):
+                    # ──────────────── DELETE SINGLE RECORD ────────────────
+                    if st.button("Delete This Record", type="primary", use_container_width=True):
+                        with st.popover("Confirm permanent deletion", width="stretch"):
                             st.warning(
                                 f"Are you sure you want to **delete** loan SN {int(selected_row['sn'])} – "
                                 f"{selected_row['names']}?\n\nThis action cannot be undone."
                             )
-                            if st.button("Yes, Delete Permanently", type="primary"):
-                                conn = sqlite3.connect('loans.db')
-                                conn.execute("DELETE FROM loans WHERE sn = ?", (int(selected_row['sn']),))
-                                conn.commit()
-                                conn.close()
-                                st.cache_data.clear()
-                                st.session_state.df = load_loans_df()
-                                st.success(f"Record SN {int(selected_row['sn'])} deleted successfully.")
+                            if st.button("Yes, Delete Permanently", type="primary", use_container_width=True):
+                                sn_to_delete = int(selected_row['sn'])
+                                # Load fresh data
+                                current_df = load_loans_df()
+
+                                # Drop the row with matching sn
+                                updated_df = current_df[current_df['sn'] != sn_to_delete].copy()
+
+                                # Save the modified dataframe back
+                                save_loans_df(updated_df)
+
+                                # Clean session state
+                                if 'df' in st.session_state:
+                                    del st.session_state.df
+
+                                st.success(f"Record SN {sn_to_delete} – {selected_row['names']} deleted successfully.")
                                 st.rerun()
+                    # ──────────────────────────────────────────────────────
 
                     st.subheader(f"Editing Record SN {int(selected_row['sn'])} – {selected_row['names']}")
 
@@ -1142,7 +1162,7 @@ elif st.session_state.page == "Edit Loans":
                             st.metric("Grand Total Due", f"NGN {g_total:,.2f}")
                             st.metric("Outstanding Balance", f"NGN {final_balance:,.2f}", delta_color="inverse")
 
-                        if st.form_submit_button("💾 Save Changes", type="primary", use_container_width=True):
+                        if st.form_submit_button("Save Changes", type="primary", use_container_width=True):
                             pure_interest = edit_amount * (edit_rate / 100) * edit_duration
 
                             if edit_penalty > 0:
@@ -1155,7 +1175,7 @@ elif st.session_state.page == "Edit Loans":
                                     edit_amount, edit_rate, edit_duration, edit_admin_fee, edit_remitted, edit_date
                                 )
 
-                            # Reload fresh copy to avoid stale state
+                            # Reload fresh copy for edit
                             fresh_df = load_loans_df()
                             mask = fresh_df['sn'] == selected_row['sn']
 
@@ -1173,6 +1193,8 @@ elif st.session_state.page == "Edit Loans":
                             fresh_df.loc[mask, 'balance']         = round(max(balance, 0), 2)
 
                             save_loans_df(fresh_df)
+                            if 'df' in st.session_state:
+                                del st.session_state.df
                             st.session_state.df = fresh_df
 
                             st.markdown(
@@ -1235,6 +1257,8 @@ elif st.session_state.page == "Admin Controls":
             cols = ['id','sn','names','date','amount','int_rate','duration','admin_fees','interest','penalty_charged','total','g_total','amt_remitted','balance']
             empty_df = pd.DataFrame(columns=cols)
             save_loans_df(empty_df)
+            if 'df' in st.session_state:
+                del st.session_state.df
             st.session_state.df = empty_df
             st.success("Loan database cleared")
             st.rerun()
@@ -1244,6 +1268,4 @@ elif st.session_state.page == "Admin Controls":
 
 # Footer
 st.markdown("---")
-st.caption("Loan Management • Fixed logout-before-save & delete issues • 2025–2026")
-
-
+st.caption("Loan Management • Delete now fully fixed • 2025–2026")
