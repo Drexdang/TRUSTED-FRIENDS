@@ -116,7 +116,7 @@ def save_loans_df(df):
     conn = sqlite3.connect('loans.db')
     df_save.to_sql('loans', conn, if_exists='replace', index=False)
     conn.close()
-    st.cache_data.clear()  # ← IMPORTANT: invalidate all caches after write
+    st.cache_data.clear()
 
 
 def save_expense(category, amount, date_str, description=""):
@@ -126,7 +126,7 @@ def save_expense(category, amount, date_str, description=""):
               (category, amount, date_str, description))
     conn.commit()
     conn.close()
-    st.cache_data.clear()  # ← invalidate cache
+    st.cache_data.clear()
 
 
 def save_other_income(category, amount, date_str, description=""):
@@ -136,7 +136,7 @@ def save_other_income(category, amount, date_str, description=""):
               (category, amount, date_str, description))
     conn.commit()
     conn.close()
-    st.cache_data.clear()  # ← invalidate cache
+    st.cache_data.clear()
 
 
 def add_new_user(username, password):
@@ -212,6 +212,7 @@ def calculate_loan_fields(amount, rate, duration, admin_fees, remitted, loan_dat
 
 
 # ─── PDF Functions ─────────────────────────────────────────────────────────────
+# (unchanged - keeping original generate_fancy_pdf_single_client and generate_profit_loss_pdf)
 def generate_fancy_pdf_single_client(row_or_df):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.add_page()
@@ -419,6 +420,7 @@ init_db()
 
 st.set_page_config(page_title="Loan Management", layout="wide", page_icon="💰")
 
+
 # ─── Improved CSS ──────────────────────────────────────────────────────────────
 st.markdown(
     """
@@ -570,6 +572,7 @@ df = st.session_state.df.copy()
 
 # ─── Page Routing ──────────────────────────────────────────────────────────────
 if st.session_state.page == "Dashboard":
+    # (unchanged)
     if not df.empty:
         st.markdown("### Key Performance Indicators")
         kpi_cols = st.columns(4)
@@ -656,7 +659,7 @@ if st.session_state.page == "Dashboard":
                 margin=dict(l=40, r=40, t=80, b=60)
             )
 
-            st.plotly_chart(fig_trend, width="stretch", config={'displayModeBar': False})
+            st.plotly_chart(fig_trend, use_container_width=True, config={'displayModeBar': False})
 
         with tab2:
             fig_bar = px.bar(
@@ -686,7 +689,7 @@ if st.session_state.page == "Dashboard":
                 bargap=0.22,
                 showlegend=False
             )
-            st.plotly_chart(fig_bar, width="stretch")
+            st.plotly_chart(fig_bar, use_container_width=True)
 
         with tab3:
             fig_pie = px.pie(
@@ -717,7 +720,7 @@ if st.session_state.page == "Dashboard":
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)'
             )
-            st.plotly_chart(fig_pie, width="stretch")
+            st.plotly_chart(fig_pie, use_container_width=True)
 
     else:
         st.info("No loan records yet. Add some loans to unlock beautiful visualizations!")
@@ -730,7 +733,7 @@ elif st.session_state.page == "View Records":
 
         st.dataframe(
             filtered.drop(columns=['id'] if 'id' in filtered.columns else []),
-            width="stretch",
+            use_container_width=True,
             hide_index=True,
             column_config={
                 "date": st.column_config.DateColumn("Date", disabled=True, format="YYYY-MM-DD"),
@@ -773,24 +776,25 @@ elif st.session_state.page == "Reports":
 
                     with c1:
                         csv_data = filtered.drop(columns=['id'] if 'id' in filtered else []).to_csv(index=False).encode('utf-8')
-                        st.download_button("Download CSV", csv_data, f"{fname}.csv", "text/csv", width="stretch")
+                        st.download_button("Download CSV", csv_data, f"{fname}.csv", "text/csv", use_container_width=True)
 
                     with c2:
-                        pdf_buf = generate_fancy_pdf_single_client(filtered) if selected_client != "All Clients" else BytesIO()
-                        if selected_client == "All Clients":
-                            st.info("PDF export for all clients not implemented in this version.")
+                        if selected_client != "All Clients":
+                            pdf_buf = generate_fancy_pdf_single_client(filtered)
+                            st.download_button("Download PDF", pdf_buf, f"{fname}.pdf", "application/pdf", use_container_width=True)
                         else:
-                            st.download_button("Download PDF", pdf_buf, f"{fname}.pdf", "application/pdf", width="stretch")
+                            st.info("PDF export for all clients not implemented in this version.")
 
                     st.markdown("**Preview:**")
                     st.dataframe(
                         filtered.drop(columns=['id'] if 'id' in filtered else []),
-                        width="stretch"
+                        use_container_width=True
                     )
             else:
                 st.info("No data available.")
 
         with tab2:
+            # (Profit & Loss section remains mostly unchanged - only minor layout tweaks)
             st.subheader("Profit & Loss Statement")
 
             period_options = ["All Time", "This Year", "Last 12 Months", "Custom Range"]
@@ -850,6 +854,7 @@ elif st.session_state.page == "Reports":
 
             st.markdown(f"**Final Net Position: NGN {final_position:,.2f}**")
 
+            # Income / Expense forms (unchanged logic, minor rerun handling)
             with st.expander("Add New Income Source"):
                 if 'income_submitted' not in st.session_state:
                     st.session_state.income_submitted = False
@@ -948,27 +953,27 @@ elif st.session_state.page == "Reports":
                 pl_flat.update({f"Expense - {k}": v for k,v in expenses_grouped.items()})
                 pl_df = pd.DataFrame([pl_flat])
                 csv_pl = pl_df.to_csv(index=False).encode('utf-8')
-                st.download_button("Download CSV", csv_pl, f"{fname_pl}.csv", "text/csv", width="stretch")
+                st.download_button("Download CSV", csv_pl, f"{fname_pl}.csv", "text/csv", use_container_width=True)
 
             with c2:
                 pdf_pl = generate_profit_loss_pdf(pl_data, period)
-                st.download_button("Download PDF", pdf_pl, f"{fname_pl}.pdf", "application/pdf", width="stretch")
+                st.download_button("Download PDF", pdf_pl, f"{fname_pl}.pdf", "application/pdf", use_container_width=True)
 
             st.markdown("**Transactions Preview**")
             st.dataframe(
                 loans_filtered.drop(columns=['id'] if 'id' in loans_filtered else []),
-                width="stretch"
+                use_container_width=True
             )
 
             col_exp1, col_exp2 = st.columns(2)
             with col_exp1:
                 if not expenses_filtered.empty:
                     st.markdown("**Expense Details**")
-                    st.dataframe(expenses_filtered.style.format(precision=2, thousands=","), width="stretch")
+                    st.dataframe(expenses_filtered.style.format(precision=2, thousands=","), use_container_width=True)
             with col_exp2:
                 if not income_filtered.empty:
                     st.markdown("**Other Income Details**")
-                    st.dataframe(income_filtered.style.format(precision=2, thousands=","), width="stretch")
+                    st.dataframe(income_filtered.style.format(precision=2, thousands=","), use_container_width=True)
     else:
         general_login_form()
 
@@ -977,6 +982,7 @@ elif st.session_state.page == "Add Loan":
     if st.session_state.add_loan_auth:
         st.header("New Loan")
 
+        # Use session state to control form reset & message timing
         if 'add_loan_submitted' not in st.session_state:
             st.session_state.add_loan_submitted = False
 
@@ -992,7 +998,7 @@ elif st.session_state.page == "Add Loan":
                 admin_fee = st.number_input("Admin Fee (NGN)", min_value=0.0, step=1000.0, format="%.0f", key="add_admin")
                 already_paid = st.number_input("Already Paid (NGN)", min_value=0.0, step=5000.0, format="%.0f", key="add_paid")
 
-            submitted = st.form_submit_button("Save Loan", type="primary", width="stretch")
+            submitted = st.form_submit_button("Save Loan", type="primary", use_container_width=True)
 
             if submitted:
                 if name.strip() and principal > 0:
@@ -1000,6 +1006,7 @@ elif st.session_state.page == "Add Loan":
                         principal, rate_pct, months, admin_fee, already_paid, disp_date
                     )
                     sn_next = int(df['sn'].max() if not df.empty else 0) + 1
+
                     new_row = pd.DataFrame([{
                         'sn': sn_next,
                         'names': name.strip(),
@@ -1016,18 +1023,22 @@ elif st.session_state.page == "Add Loan":
                         'balance': b_val
                     }])
 
-                    if df.empty:
+                    current_df = st.session_state.df
+                    if current_df.empty:
                         st.session_state.df = new_row
                     else:
-                        st.session_state.df = pd.concat([df, new_row], ignore_index=True)
+                        st.session_state.df = pd.concat([current_df, new_row], ignore_index=True)
 
                     save_loans_df(st.session_state.df)
-                    st.success("Loan saved successfully!")
+
+                    # Show success FIRST, then trigger reset & refresh
+                    st.success(f"Loan saved successfully! SN = {sn_next}")
                     st.session_state.add_loan_submitted = True
                     st.rerun()
                 else:
                     st.error("Client name and principal amount are required")
 
+        # Clear form fields after successful submission
         if st.session_state.add_loan_submitted:
             st.session_state.add_loan_submitted = False
             for key in ["add_name", "add_date", "add_principal", "add_rate", "add_months", "add_admin", "add_paid"]:
@@ -1043,9 +1054,10 @@ elif st.session_state.page == "Edit Loans":
     if st.session_state.edit_loan_auth:
         st.header("Edit / Delete Loan Record")
 
-        df = load_loans_df()
+        # Always load fresh data in edit mode to avoid stale cache issues
+        current_df = load_loans_df()
 
-        if df.empty:
+        if current_df.empty:
             st.info("No loans exist yet. Please add a loan first.")
         else:
             col_search1, col_search2 = st.columns([3, 1])
@@ -1055,10 +1067,10 @@ elif st.session_state.page == "Edit Loans":
 
             with col_search2:
                 st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("Find", type="primary", width="stretch"):
-                    st.rerun()  # force refresh on search
+                if st.button("Find", type="primary", use_container_width=True):
+                    st.rerun()
 
-            candidates = df.copy()
+            candidates = current_df.copy()
 
             if search_query.strip():
                 try:
@@ -1084,12 +1096,13 @@ elif st.session_state.page == "Edit Loans":
                     })
                     selection = st.dataframe(
                         display_choice,
-                        width="stretch",
+                        use_container_width=True,
                         hide_index=False,
                         on_select="rerun"
                     )
                     if selection.selection.rows:
-                        selected_row = candidates.iloc[selection.selection.rows[0]]
+                        selected_idx = selection.selection.rows[0]
+                        selected_row = candidates.iloc[selected_idx]
                 else:
                     selected_row = candidates.iloc[0]
 
@@ -1099,21 +1112,25 @@ elif st.session_state.page == "Edit Loans":
 
                     col_left, col_right = st.columns([5, 2])
                     with col_right:
-                        if st.button("🗑️ Delete This Record", type="primary", width="stretch"):
+                        if st.button("🗑️ Delete This Record", type="primary", use_container_width=True):
                             with st.popover("Confirm permanent deletion", width="stretch"):
                                 st.warning(
                                     f"Are you sure you want to **delete** loan SN {int(selected_row['sn'])} – "
                                     f"{selected_row['names']}?\n\nThis action cannot be undone."
                                 )
-                                if st.button("Yes, Delete Permanently", type="primary", width="stretch"):
+                                if st.button("Yes, Delete Permanently", type="primary", use_container_width=True):
                                     conn = sqlite3.connect('loans.db')
                                     c = conn.cursor()
                                     c.execute("DELETE FROM loans WHERE sn = ?", (int(selected_row['sn']),))
                                     conn.commit()
                                     conn.close()
-                                    st.cache_data.clear()  # ← CRITICAL: clear cache after delete
-                                    st.session_state.df = load_loans_df()  # force reload
-                                    st.success(f"Record SN {int(selected_row['sn'])} deleted.")
+
+                                    st.cache_data.clear()
+                                    # Force fresh load and update session state
+                                    del st.session_state.df
+                                    st.session_state.df = load_loans_df()
+
+                                    st.success(f"Record SN {int(selected_row['sn'])} deleted successfully.")
                                     st.rerun()
 
                     st.subheader(f"Editing Record SN {int(selected_row['sn'])} – {selected_row['names']}")
@@ -1167,7 +1184,7 @@ elif st.session_state.page == "Edit Loans":
                             st.metric("Grand Total Due", f"NGN {g_total:,.2f}")
                             st.metric("Outstanding Balance", f"NGN {final_balance:,.2f}", delta_color="inverse")
 
-                        submitted = st.form_submit_button("💾 Save Changes", type="primary", width="stretch")
+                        submitted = st.form_submit_button("💾 Save Changes", type="primary", use_container_width=True)
 
                         if submitted:
                             pure_interest = edit_amount * (edit_rate / 100) * edit_duration
@@ -1182,23 +1199,25 @@ elif st.session_state.page == "Edit Loans":
                                     edit_amount, edit_rate, edit_duration, edit_admin_fee, edit_remitted, edit_date
                                 )
 
-                            mask = df['sn'] == selected_row['sn']
-                            df.loc[mask, 'names']           = edit_name.strip()
-                            df.loc[mask, 'date']            = pd.to_datetime(edit_date)
-                            df.loc[mask, 'amount']          = edit_amount
-                            df.loc[mask, 'int_rate']        = edit_rate
-                            df.loc[mask, 'duration']        = edit_duration
-                            df.loc[mask, 'admin_fees']      = edit_admin_fee
-                            df.loc[mask, 'amt_remitted']    = edit_remitted
-                            df.loc[mask, 'interest']        = round(pure_interest, 2)
-                            df.loc[mask, 'penalty_charged'] = round(final_penalty, 2)
-                            df.loc[mask, 'total']           = round(total_add, 2)
-                            df.loc[mask, 'g_total']         = round(g_total, 2)
-                            df.loc[mask, 'balance']         = round(max(balance, 0), 2)
+                            # Update the current dataframe copy
+                            mask = current_df['sn'] == selected_row['sn']
+                            current_df.loc[mask, 'names']           = edit_name.strip()
+                            current_df.loc[mask, 'date']            = pd.to_datetime(edit_date)
+                            current_df.loc[mask, 'amount']          = edit_amount
+                            current_df.loc[mask, 'int_rate']        = edit_rate
+                            current_df.loc[mask, 'duration']        = edit_duration
+                            current_df.loc[mask, 'admin_fees']      = edit_admin_fee
+                            current_df.loc[mask, 'amt_remitted']    = edit_remitted
+                            current_df.loc[mask, 'interest']        = round(pure_interest, 2)
+                            current_df.loc[mask, 'penalty_charged'] = round(final_penalty, 2)
+                            current_df.loc[mask, 'total']           = round(total_add, 2)
+                            current_df.loc[mask, 'g_total']         = round(g_total, 2)
+                            current_df.loc[mask, 'balance']         = round(max(balance, 0), 2)
 
-                            st.session_state.df = df
-                            save_loans_df(df)
-                            st.cache_data.clear()  # ← CRITICAL after save
+                            # Commit changes
+                            st.session_state.df = current_df.copy()
+                            save_loans_df(current_df)
+                            st.cache_data.clear()
 
                             st.markdown(
                                 f"""
@@ -1209,6 +1228,8 @@ elif st.session_state.page == "Edit Loans":
                                 unsafe_allow_html=True
                             )
 
+                            # Small delay helps message visibility in some cases
+                            # import time; time.sleep(0.4)
                             st.rerun()
 
     else:
@@ -1227,13 +1248,14 @@ elif st.session_state.page == "Admin Controls":
             with st.form("new_user"):
                 new_username = st.text_input("New Username")
                 new_password = st.text_input("New Password", type="password")
-                submitted = st.form_submit_button("Create User", width="stretch")
+                submitted = st.form_submit_button("Create User", use_container_width=True)
 
                 if submitted:
                     if new_username.strip() and new_password.strip():
                         if add_new_user(new_username.strip(), new_password.strip()):
                             st.success(f"User '{new_username}' created successfully")
-                            st.cache_data.clear()  # clear after user change
+                            st.cache_data.clear()
+                            st.rerun()
                         else:
                             st.error("Username already exists")
                     else:
@@ -1246,17 +1268,18 @@ elif st.session_state.page == "Admin Controls":
                 for _, user in users.iterrows():
                     col_a, col_b = st.columns([4, 1])
                     col_a.write(f"**{user['username']}** (created {user['created_at'][:10]})")
-                    if user['username'] != st.session_state.get('current_user') and st.button("Delete", key=f"del_{user['id']}", width="stretch"):
+                    if user['username'] != st.session_state.get('current_user') and \
+                       st.button("Delete", key=f"del_{user['id']}", use_container_width=True):
                         delete_user(user['id'], st.session_state.current_user)
                         st.success(f"User {user['username']} deleted")
-                        st.cache_data.clear()  # clear after user delete
+                        st.cache_data.clear()
                         st.rerun()
             else:
                 st.info("No additional users yet (only default admin)")
 
         st.markdown("---")
         st.warning("Irreversible action")
-        if st.button("RESET ALL LOAN DATA", type="primary", width="stretch"):
+        if st.button("RESET ALL LOAN DATA", type="primary", use_container_width=True):
             cols = ['id','sn','names','date','amount','int_rate','duration','admin_fees','interest','penalty_charged','total','g_total','amt_remitted','balance']
             st.session_state.df = pd.DataFrame(columns=cols)
             save_loans_df(st.session_state.df)
@@ -1269,4 +1292,5 @@ elif st.session_state.page == "Admin Controls":
 
 # Footer
 st.markdown("---")
-st.caption("Loan Management • SN Search + Delete + Floating Save Notification • Updated 2026")
+st.caption("Loan Management • Fixed logout-before-save & delete issues • 2025–2026")
+
