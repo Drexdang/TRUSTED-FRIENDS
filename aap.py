@@ -258,7 +258,7 @@ def generate_fancy_pdf_single_client(row_or_df):
 
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 12, f"Client: {row['names']}", ln=1)
+    pdf.cell(0, 12, f"Customer: {row['names']}", ln=1)
     pdf.set_font("Arial", "", 11)
     pdf.cell(0, 10, f"Disbursement Date: {date_display}", ln=1)
 
@@ -340,7 +340,7 @@ def generate_profit_loss_pdf(pl_data, period_text):
     pdf.rect(0, 55, 210, 35, 'F')
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Arial", "B", 20)
-    pdf.cell(0, 18, "PROFIT & LOSS STATEMENT", ln=1, align='C')
+    pdf.cell(0, 18, "INCOME STATEMENT", ln=1, align='C')
     pdf.set_font("Arial", "", 12)
     pdf.cell(0, 10, f"Period: {period_text}", ln=1, align='C')
     pdf.cell(0, 8, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=1, align='C')
@@ -1268,4 +1268,5 @@ elif st.session_state.page == "Admin Controls":
 
 # Footer
 st.markdown("---")
+
 st.caption("Loan Management • Delete now fully fixed • 2025–2026")
