@@ -1112,9 +1112,12 @@ elif st.session_state.page == "Edit Loans":
                                     f"{selected_row['names']}?\n\nThis action cannot be undone."
                                 )
                                 if st.button("Yes, Delete Permanently", type="primary", width="stretch"):
-                                    df = df[df['sn'] != selected_row['sn']]
-                                    st.session_state.df = df
-                                    save_loans_df(df)
+                                    conn = sqlite3.connect('loans.db')
+                                    c = conn.cursor()
+                                    c.execute("DELETE FROM loans WHERE sn = ?", (int(selected_row['sn']),))
+                                    conn.commit()
+                                    conn.close()
+                                    st.session_state.df = load_loans_df()  # reload fresh data
                                     st.success(f"Record SN {int(selected_row['sn'])} deleted.")
                                     st.rerun()
 
